@@ -148,6 +148,16 @@ function ai_share_platforms() {
         'grok'       => 'Grok',
     ];
 }
+function ai_share_platform_icons() {
+    return [
+        'chatgpt'    => '💬',
+        'perplexity' => '🔍',
+        'claude'     => '🤖',
+        'google'     => '🔮',
+        'grok'       => '🐦',
+    ];
+}
+
 
 /**
  * ------------------------------------------------------------------
@@ -250,17 +260,27 @@ function ai_share_render_buttons( $post_id ) {
     ?>
     <div class="ai-share-buttons">
         <p><strong>🤖 Explore this content with AI:</strong></p>
-        <?php foreach ( $settings['platforms'] as $key => $enabled ) :
+        <?php
+        $labels = ai_share_platforms();
+        $icons  = ai_share_platform_icons();
+
+        foreach ( $settings['platforms'] as $key => $enabled ) :
             if ( empty( $links[ $key ] ) ) {
                 continue;
             }
             ?>
             <a href="<?php echo esc_url( $links[ $key ] . $encoded ); ?>"
-               target="_blank"
-               rel="noopener">
-                <?php echo esc_html( ai_share_platforms()[ $key ] ); ?>
+            target="_blank"
+            rel="noopener">
+                <?php
+                echo esc_html( $icons[ $key ] ?? '' );
+                echo ' ';
+                echo esc_html( $labels[ $key ] ?? '' );
+                ?>
             </a>
         <?php endforeach; ?>
+
+
     </div>
     <?php
     return ob_get_clean();
