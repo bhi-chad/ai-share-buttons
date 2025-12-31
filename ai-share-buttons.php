@@ -3,7 +3,7 @@
  * Plugin Name: AI Share Buttons
  * Plugin URI: https://metehan.ai/
  * Description: Add AI-powered share buttons (ChatGPT, Perplexity, Claude, Google AI Mode, Grok) to your content. Inspired by Metehan.ai
- * Version: 0.1.1
+ * Version: 0.1.3
  * Author: Bluehive Interactive
  * Author URI: https://www.bluehiveinteractive.com/
  * License: GPLv2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * CONSTANTS
  * ------------------------------------------------------------------
  */
-define( 'AI_SHARE_VERSION', '0.1.1' );
+define( 'AI_SHARE_VERSION', '0.1.3' );
 define( 'AI_SHARE_OPTION_KEY', 'ai_share_settings' );
 define( 'AI_SHARE_META_KEY', '_ai_share_prompt' );
 
@@ -328,10 +328,14 @@ add_shortcode( 'ai_share_buttons', function () {
 });
 
 add_action( 'wp_enqueue_scripts', function () {
-    wp_enqueue_style(
-        'ai-share-buttons',
-        plugin_dir_url( __FILE__ ) . 'assets/css/ai-share-buttons.css',
-        [],
-        AI_SHARE_VERSION
-    );
+    if ( is_singular() ) {
+        wp_enqueue_style(
+            'ai-share-buttons',
+            plugin_dir_url( __FILE__ ) . 'assets/css/ai-share-buttons.css',
+            [],
+            AI_SHARE_VERSION
+        );
+    }
 });
+
+
