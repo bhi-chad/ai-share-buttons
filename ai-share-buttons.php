@@ -3,7 +3,7 @@
  * Plugin Name: AI Share Buttons
  * Plugin URI: https://metehan.ai/
  * Description: Add AI-powered share buttons (ChatGPT, Perplexity, Claude, Google AI Mode, Grok) to your content.
- * Version: 0.1.0
+ * Version: 0.1.1
  * Author: Inspired by Metehan
  * Author URI: https://metehan.ai/
  * License: GPLv2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * CONSTANTS
  * ------------------------------------------------------------------
  */
-define( 'AI_SHARE_VERSION', '0.1.0' );
+define( 'AI_SHARE_VERSION', '0.1.1' );
 define( 'AI_SHARE_OPTION_KEY', 'ai_share_settings' );
 define( 'AI_SHARE_META_KEY', '_ai_share_prompt' );
 
@@ -54,7 +54,7 @@ add_action( 'admin_menu', function () {
 });
 
 function ai_share_settings_page() {
-    $options = get_option( AI_SHARE_OPTION_KEY );
+    $options = get_option( AI_SHARE_OPTION_KEY, [] );
     ?>
     <div class="wrap">
         <h1>AI Share Buttons</h1>
@@ -64,29 +64,39 @@ function ai_share_settings_page() {
 
             <table class="form-table">
                 <tr>
-                    <th>Brand Name</th>
+                    <th scope="row">Brand Name</th>
                     <td>
-                        <input type="text" name="<?php echo AI_SHARE_OPTION_KEY; ?>[brand]" value="<?php echo esc_attr( $options['brand'] ?? get_bloginfo( 'name' ) ); ?>" class="regular-text">
+                        <input type="text"
+                               name="<?php echo esc_attr( AI_SHARE_OPTION_KEY ); ?>[brand]"
+                               value="<?php echo esc_attr( $options['brand'] ?? get_bloginfo( 'name' ) ); ?>"
+                               class="regular-text">
                     </td>
                 </tr>
 
                 <tr>
-                    <th>Enabled Platforms</th>
+                    <th scope="row">Enabled AI Platforms</th>
                     <td>
                         <?php
-                        $platforms = ai_share_platforms();
-                        foreach ( $platforms as $key => $label ) {
+                        foreach ( ai_share_platforms() as $key => $label ) {
                             $checked = ! empty( $options['platforms'][ $key ] );
-                            echo '<label><input type="checkbox" name="' . AI_SHARE_OPTION_KEY . '[platforms][' . esc_attr( $key ) . ']" value="1" ' . checked( $checked, true, false ) . '> ' . esc_html( $label ) . '</label><br>';
+                            ?>
+                            <label>
+                                <input type="checkbox"
+                                       name="<?php echo esc_attr( AI_SHARE_OPTION_KEY ); ?>[platforms][<?php echo esc_attr( $key ); ?>]"
+                                       value="1"
+                                    <?php checked( $checked ); ?>>
+                                <?php echo esc_html( $label ); ?>
+                            </label><br>
+                            <?php
                         }
                         ?>
                     </td>
                 </tr>
 
                 <tr>
-                    <th>Auto Placement (Posts)</th>
+                    <th scope="row">Auto Placement (Posts)</th>
                     <td>
-                        <select name="<?php echo AI_SHARE_OPTION_KEY; ?>[placement]">
+                        <select name="<?php echo esc_attr( AI_SHARE_OPTION_KEY ); ?>[placement]">
                             <option value="">Disabled</option>
                             <option value="top" <?php selected( $options['placement'] ?? '', 'top' ); ?>>Top</option>
                             <option value="bottom" <?php selected( $options['placement'] ?? '', 'bottom' ); ?>>Bottom</option>
@@ -109,8 +119,20 @@ function ai_share_settings_page() {
 }
 
 add_action( 'admin_init', function () {
-    register_setting( 'ai_share_group', AI_SHARE_OPTION_KEY );
+    register_setting(
+        'ai_share_group',
+        AI_SHARE_OPTION_KEY,
+        'ai_share_sanitize_settings'
+    );
 });
+
+function ai_share_sanitize_settings( $input ) {
+    return [
+        'brand'     => sanitize_text_field( $input['brand'] ?? '' ),
+        'placement' => sanitize_text_field( $input['placement'] ?? '' ),
+        'platforms' => array_map( 'absint', $input['platforms'] ?? [] ),
+    ];
+}
 
 /**
  * ------------------------------------------------------------------
@@ -137,7 +159,7 @@ add_action( 'add_meta_boxes', function () {
         'ai-share-meta',
         'AI Share Prompt',
         'ai_share_meta_box',
-        ['post'],
+        [ 'post' ],
         'normal'
     );
 });
@@ -150,16 +172,21 @@ function ai_share_meta_box( $post ) {
 
     <p>
         <?php foreach ( ai_share_default_templates() as $key => $template ) : ?>
-            <button type="button" class="button ai-template-btn" data-template="<?php echo esc_attr( $template ); ?>">
-                <?php echo ucfirst( esc_html( $key ) ); ?>
+            <button type="button"
+                    class="button ai-template-btn"
+                    data-template="<?php echo esc_attr( $template ); ?>">
+                <?php echo esc_html( ucfirst( $key ) ); ?>
             </button>
         <?php endforeach; ?>
     </p>
 
     <script>
-        document.querySelectorAll('.ai-template-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelector('[name="ai_share_prompt"]').value = btn.dataset.template;
+        document.querySelectorAll('.ai-template-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const textarea = document.querySelector('[name="ai_share_prompt"]');
+                if (textarea) {
+                    textarea.value = btn.dataset.template;
+                }
             });
         });
     </script>
@@ -167,11 +194,19 @@ function ai_share_meta_box( $post ) {
 }
 
 add_action( 'save_post', function ( $post_id ) {
-    if ( ! isset( $_POST['ai_share_meta_nonce'] ) || ! wp_verify_nonce( $_POST['ai_share_meta_nonce'], 'ai_share_meta_save' ) ) {
+    if (
+        ! isset( $_POST['ai_share_meta_nonce'] ) ||
+        ! wp_verify_nonce( $_POST['ai_share_meta_nonce'], 'ai_share_meta_save' )
+    ) {
         return;
     }
+
     if ( isset( $_POST['ai_share_prompt'] ) ) {
-        update_post_meta( $post_id, AI_SHARE_META_KEY, sanitize_textarea_field( $_POST['ai_share_prompt'] ) );
+        update_post_meta(
+            $post_id,
+            AI_SHARE_META_KEY,
+            sanitize_textarea_field( $_POST['ai_share_prompt'] )
+        );
     }
 });
 
@@ -181,13 +216,14 @@ add_action( 'save_post', function ( $post_id ) {
  * ------------------------------------------------------------------
  */
 function ai_share_render_buttons( $post_id ) {
-    $settings = get_option( AI_SHARE_OPTION_KEY );
+    $settings = get_option( AI_SHARE_OPTION_KEY, [] );
+
     if ( empty( $settings['platforms'] ) ) {
         return '';
     }
 
     $url    = get_permalink( $post_id );
-    $brand  = $settings['brand'] ?? get_bloginfo( 'name' );
+    $brand  = $settings['brand'] ?: get_bloginfo( 'name' );
     $prompt = get_post_meta( $post_id, AI_SHARE_META_KEY, true );
 
     if ( empty( $prompt ) ) {
@@ -195,8 +231,8 @@ function ai_share_render_buttons( $post_id ) {
     }
 
     $prompt = str_replace(
-        ['{URL}', '{BRAND}'],
-        [$url, $brand],
+        [ '{URL}', '{BRAND}' ],
+        [ $url, $brand ],
         $prompt
     );
 
@@ -215,9 +251,13 @@ function ai_share_render_buttons( $post_id ) {
     <div class="ai-share-buttons">
         <p><strong>🤖 Explore this content with AI:</strong></p>
         <?php foreach ( $settings['platforms'] as $key => $enabled ) :
-            if ( ! isset( $links[ $key ] ) ) continue;
+            if ( empty( $links[ $key ] ) ) {
+                continue;
+            }
             ?>
-            <a href="<?php echo esc_url( $links[ $key ] . $encoded ); ?>" target="_blank" rel="noopener">
+            <a href="<?php echo esc_url( $links[ $key ] . $encoded ); ?>"
+               target="_blank"
+               rel="noopener">
                 <?php echo esc_html( ai_share_platforms()[ $key ] ); ?>
             </a>
         <?php endforeach; ?>
@@ -236,7 +276,7 @@ add_filter( 'the_content', function ( $content ) {
         return $content;
     }
 
-    $settings = get_option( AI_SHARE_OPTION_KEY );
+    $settings = get_option( AI_SHARE_OPTION_KEY, [] );
     if ( empty( $settings['placement'] ) ) {
         return $content;
     }
@@ -246,9 +286,11 @@ add_filter( 'the_content', function ( $content ) {
     if ( $settings['placement'] === 'top' ) {
         return $buttons . $content;
     }
+
     if ( $settings['placement'] === 'bottom' ) {
         return $content . $buttons;
     }
+
     if ( $settings['placement'] === 'both' ) {
         return $buttons . $content . $buttons;
     }
