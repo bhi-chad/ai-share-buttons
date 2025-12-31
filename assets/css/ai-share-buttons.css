@@ -30,3 +30,30 @@
     background: #f3f4f6;
     border-color: #9ca3af;
 }
+
+/* ------------------------------
+   Minimal / Inline Skin
+-------------------------------- */
+.ai-share-buttons.ai-share-skin-minimal {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.ai-share-buttons.ai-share-skin-minimal p {
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.ai-share-buttons.ai-share-skin-minimal a {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-right: 0.75em;
+    font-size: 0.9rem;
+    color: #eab308;
+}
+
+.ai-share-buttons.ai-share-skin-minimal a:hover {
+    text-decoration: underline;
+}
