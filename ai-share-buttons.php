@@ -63,6 +63,7 @@ function ai_share_settings_page() {
             <?php settings_fields( 'ai_share_group' ); ?>
 
             <table class="form-table">
+
                 <tr>
                     <th scope="row">Brand Name</th>
                     <td>
@@ -76,20 +77,15 @@ function ai_share_settings_page() {
                 <tr>
                     <th scope="row">Enabled AI Platforms</th>
                     <td>
-                        <?php
-                        foreach ( ai_share_platforms() as $key => $label ) {
-                            $checked = ! empty( $options['platforms'][ $key ] );
-                            ?>
+                        <?php foreach ( ai_share_platforms() as $key => $label ) : ?>
                             <label>
                                 <input type="checkbox"
                                        name="<?php echo esc_attr( AI_SHARE_OPTION_KEY ); ?>[platforms][<?php echo esc_attr( $key ); ?>]"
                                        value="1"
-                                    <?php checked( $checked ); ?>>
+                                    <?php checked( ! empty( $options['platforms'][ $key ] ) ); ?>>
                                 <?php echo esc_html( $label ); ?>
                             </label><br>
-                            <?php
-                        }
-                        ?>
+                        <?php endforeach; ?>
                     </td>
                 </tr>
 
@@ -104,6 +100,24 @@ function ai_share_settings_page() {
                         </select>
                     </td>
                 </tr>
+
+                <tr>
+                    <th scope="row">Button Style</th>
+                    <td>
+                        <select name="<?php echo esc_attr( AI_SHARE_OPTION_KEY ); ?>[skin]">
+                            <option value="default" <?php selected( $options['skin'] ?? 'default', 'default' ); ?>>
+                                Default (Buttons)
+                            </option>
+                            <option value="minimal" <?php selected( $options['skin'] ?? '', 'minimal' ); ?>>
+                                Minimal (Inline Links)
+                            </option>
+                        </select>
+                        <p class="description">
+                            Choose how the AI share buttons appear on the front end.
+                        </p>
+                    </td>
+                </tr>
+
             </table>
 
             <?php submit_button(); ?>
@@ -130,6 +144,7 @@ function ai_share_sanitize_settings( $input ) {
     return [
         'brand'     => sanitize_text_field( $input['brand'] ?? '' ),
         'placement' => sanitize_text_field( $input['placement'] ?? '' ),
+        'skin'      => sanitize_text_field( $input['skin'] ?? 'default' ),
         'platforms' => array_map( 'absint', $input['platforms'] ?? [] ),
     ];
 }
@@ -148,6 +163,7 @@ function ai_share_platforms() {
         'grok'       => 'Grok',
     ];
 }
+
 function ai_share_platform_icons() {
     return [
         'chatgpt'    => '💬',
@@ -157,7 +173,6 @@ function ai_share_platform_icons() {
         'grok'       => '🐦',
     ];
 }
-
 
 /**
  * ------------------------------------------------------------------
@@ -233,7 +248,7 @@ function ai_share_render_buttons( $post_id ) {
     }
 
     $url    = get_permalink( $post_id );
-    $brand  = $settings['brand'] ?: get_bloginfo( 'name' );
+    $brand  = ! empty( $settings['brand'] ) ? $settings['brand'] : get_bloginfo( 'name' );
     $prompt = get_post_meta( $post_id, AI_SHARE_META_KEY, true );
 
     if ( empty( $prompt ) ) {
@@ -256,22 +271,23 @@ function ai_share_render_buttons( $post_id ) {
         'grok'       => 'https://x.com/i/grok?text=',
     ];
 
+    $skin   = $settings['skin'] ?? 'default';
+    $labels = ai_share_platforms();
+    $icons  = ai_share_platform_icons();
+
     ob_start();
     ?>
-    <div class="ai-share-buttons">
+    <div class="ai-share-buttons ai-share-skin-<?php echo esc_attr( $skin ); ?>">
         <p><strong>🤖 Explore this content with AI:</strong></p>
-        <?php
-        $labels = ai_share_platforms();
-        $icons  = ai_share_platform_icons();
 
-        foreach ( $settings['platforms'] as $key => $enabled ) :
+        <?php foreach ( $settings['platforms'] as $key => $enabled ) :
             if ( empty( $links[ $key ] ) ) {
                 continue;
             }
             ?>
             <a href="<?php echo esc_url( $links[ $key ] . $encoded ); ?>"
-            target="_blank"
-            rel="noopener">
+               target="_blank"
+               rel="noopener">
                 <?php
                 echo esc_html( $icons[ $key ] ?? '' );
                 echo ' ';
@@ -279,8 +295,6 @@ function ai_share_render_buttons( $post_id ) {
                 ?>
             </a>
         <?php endforeach; ?>
-
-
     </div>
     <?php
     return ob_get_clean();
@@ -327,6 +341,11 @@ add_shortcode( 'ai_share_buttons', function () {
     return ai_share_render_buttons( get_the_ID() );
 });
 
+/**
+ * ------------------------------------------------------------------
+ * FRONTEND CSS
+ * ------------------------------------------------------------------
+ */
 add_action( 'wp_enqueue_scripts', function () {
     if ( is_singular() ) {
         wp_enqueue_style(
@@ -337,5 +356,3 @@ add_action( 'wp_enqueue_scripts', function () {
         );
     }
 });
-
-
