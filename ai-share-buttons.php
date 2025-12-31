@@ -326,3 +326,12 @@ add_filter( 'the_content', function ( $content ) {
 add_shortcode( 'ai_share_buttons', function () {
     return ai_share_render_buttons( get_the_ID() );
 });
+
+add_action( 'wp_enqueue_scripts', function () {
+    wp_enqueue_style(
+        'ai-share-buttons',
+        plugin_dir_url( __FILE__ ) . 'assets/css/ai-share-buttons.css',
+        [],
+        AI_SHARE_VERSION
+    );
+});
